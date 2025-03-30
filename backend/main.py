@@ -1,25 +1,36 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
+import shutil
 import os
 
 app = FastAPI()
 
-# Pasta para salvar as imagens enviadas
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+#caminho da pasta que vai salvar as imagens dos inputs
+UPLOAD_DIR = "backend/uploads"
+ORIGINAIS_DIR = os.path.join(UPLOAD_DIR, "originais")  #lugar das imagens originais
+PROCESSADAS_DIR = os.path.join(UPLOAD_DIR, "processadas")  #lugar das imagens processadas
 
-@app.post("/process/")
-async def process_images(content: UploadFile = File(...), style: UploadFile = File(...)):
-    # Salvar as imagens enviadas
-    content_path = os.path.join(UPLOAD_DIR, content.filename)
-    style_path = os.path.join(UPLOAD_DIR, style.filename)
+#cria as pastas se elas n forem carregadas
+os.makedirs(ORIGINAIS_DIR, exist_ok=True)
+os.makedirs(PROCESSADAS_DIR, exist_ok=True)
 
-    with open(content_path, "wb") as f:
-        f.write(await content.read())
-    with open(style_path, "wb") as f:
-        f.write(await style.read())
+@app.post("/upload/")
+async def upload_image(file: UploadFile = File(...)):
+    #faz com que a imagem seja salva na pasta
+    original_file_path = os.path.join(ORIGINAIS_DIR, file.filename)
+    with open(original_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    #simula por enqt o processamento do modelo (aqui só retorna a mesma imagem pra past)
+    PROCESSADAS_file_path = os.path.join(PROCESSADAS_DIR, "processada_" + file.filename) #aq é pra substituir pelo caminho da imagem processada quando tiver integrado
+    shutil.copy(original_file_path, PROCESSADAS_file_path)  
+    
+    return {"filename": file.filename, "PROCESSADAS_file": PROCESSADAS_file_path}
 
-    # Simulação de processamento (substitua isso pelo modelo de IA)
-    result_image_path = "result.jpg"  # Caminho simulado para a imagem resultante
-
-    return JSONResponse(content={"result": result_image_path})
+@app.get("/image/{filename}")
+async def get_image(filename: str):
+    #retorna a imagem processada v ia caminho
+    file_path = os.path.join(PROCESSADAS_DIR, filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return {"error": "File not found"}
