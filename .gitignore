@@ -5,6 +5,7 @@ node_modules/
 # Python
 /backend/venv/
 /backend/__pycache__/
+backend/uploads/
 
 # Outros
 .DS_Store
